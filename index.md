@@ -1,17 +1,20 @@
 Wohnungsmarktanalysen mit Immoscout24
 ================
 Patrick Hausmann, Arnt von Bodelschwingh
-07/08/2016
+08/08/2016
 
 -   [Funktionen zu Abfrage der API](#funktionen-zu-abfrage-der-api)
 -   [Daten für Berlin abfragen](#daten-fur-berlin-abfragen)
 -   [Datensatz bereinigen](#datensatz-bereinigen)
 -   [Beispieloutput](#beispieloutput)
+-   [Karte der PLZ Gebiete importieren](#karte-der-plz-gebiete-importieren)
 
 ``` r
 library('httr')
 library('jsonlite')
 library('dplyr')
+library('rgdal')
+library('ggplot2')
 
 options(httr_oauth_cache = FALSE,
         scipen = 999,
@@ -83,6 +86,26 @@ get_data <- function(geocode) {
   return(out)
 
 }
+
+get_shpfile <- function(url) {
+
+  shp_layer <- strsplit(basename(url), "\\.")[[1]][1]
+
+  tmp <- tempfile()
+  pg <- httr::GET(url, write_disk(tmp))
+  unzip(tmp, exdir = dirname(tmp))
+
+  shp <- readOGR(dsn = dirname(tmp), 
+                 layer = shp_layer, 
+                 stringsAsFactors = FALSE, 
+                 verbose = FALSE)
+  shp <- spTransform(shp, CRS("+proj=longlat +datum=WGS84"))
+
+  unlink(tmp)
+
+  return(shp)
+
+}
 ```
 
 Daten für Berlin abfragen
@@ -93,9 +116,9 @@ sig <- immo24_auth()
 dat <- get_data(geocode = "1276003001")
 ```
 
-    ## Seiten: 214
+    ## Seiten: 217
 
-    ## Wohnungsangebote: 4278
+    ## Wohnungsangebote: 4322
 
 Datensatz bereinigen
 ====================
@@ -130,3 +153,19 @@ knitr::kable(x, format = "markdown")
 |  55.36|      2|    423|   7.640896|
 |  86.34|      3|   1045|  12.103310|
 |  96.45|      3|    987|  10.233280|
+
+Karte der PLZ Gebiete importieren
+=================================
+
+``` r
+url <- "https://www.statistik-berlin-brandenburg.de/opendata/RBS_OD_PLZ_2015_12.zip"
+plz <- get_shpfile(url)
+
+p1 <- ggplot() + geom_polygon(data=plz, aes(x=long, y=lat, group=group), 
+                              fill="grey70", colour="white")
+p1 <- p1 + coord_quickmap()
+p1 <- p1 + ggtitle("PLZ Gebiete in Berlin")
+p1
+```
+
+![](index_files/figure-markdown_github/PLZ-1.png)
