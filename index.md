@@ -1,7 +1,7 @@
 Wohnungsmarktanalysen mit Immoscout24
 ================
 Patrick Hausmann, Arnt von Bodelschwingh
-08/08/2016
+09/08/2016
 
 -   [Funktionen zu Abfrage der API](#funktionen-zu-abfrage-der-api)
 -   [Daten für Berlin abfragen](#daten-fur-berlin-abfragen)
@@ -15,6 +15,7 @@ library('jsonlite')
 library('dplyr')
 library('rgdal')
 library('ggplot2')
+library('rlist')
 
 options(httr_oauth_cache = FALSE,
         scipen = 999,
@@ -65,25 +66,20 @@ get_data <- function(geocode) {
 
   for (i in 1:num_pages) {
 
-    r  <- GET(paste0(url = immo24_baseurl(), geocode, "&pagenumber=", i), sig)
+    r <- GET(paste0(url = immo24_baseurl(), geocode, "&pagenumber=", i), sig)
     r <- fromJSON(content(r, "text", encoding="UTF-8"))$resultlist.resultlist$resultlistEntries$resultlistEntry
+    r <- r[[1]]$resultlist.realEstate
 
-    fin <- r[[1]][, 1:6]
-    colnames(fin) <- gsub("@", "", colnames(fin))
-    fin <- data.frame(fin, r[[1]]$resultlist.realEstate)
-    res[[i]] <- fin
+    r$realtorLogo <- NULL
+    r$realtorLogoForResultList <- NULL
+    r$titlePicture <- NULL
+
+    r <- data.frame(rlist::list.flatten(r))
+    res[[i]] <- r
   }
 
-  res_a <- bind_rows(lapply(res, "[", c("title", "privateOffer", 
-                                        "livingSpace", "numberOfRooms", 
-                                        "balcony", "garden")))
-  res_b <- bind_rows(lapply(res, "[[", "price"))
-  
-  res_df <- data.frame(res_a, res_b)
-  
-  out <- list(res_raw = res, res_df = res_df)
-
-  return(out)
+  res <- dplyr::bind_rows(res)
+  return(res)
 
 }
 
@@ -118,16 +114,30 @@ dat <- get_data(geocode = "1276003001")
 
     ## Seiten: 217
 
-    ## Wohnungsangebote: 4322
+    ## Wohnungsangebote: 4330
 
 Datensatz bereinigen
 ====================
 
 ``` r
-x <- tbl_df(dat$res_df) %>%
-     dplyr::select(livingSpace, numberOfRooms, value) %>%
-     rename(price = value, 
-            qm = livingSpace,
+x <- tbl_df(dat) %>%
+     dplyr::select(address.city,
+                   address.postcode, 
+                   address.quarter, 
+                   address.wgs84Coordinate.latitude, 
+                   address.wgs84Coordinate.longitude,
+                   livingSpace, 
+                   numberOfRooms, 
+                   balcony,
+                   garden,
+                   price.value) %>%
+     rename(city = address.city,
+            plz  = address.postcode, 
+            ortsteil = address.quarter, 
+            lat  = address.wgs84Coordinate.latitude, 
+            lon  = address.wgs84Coordinate.longitude,
+            price = price.value, 
+            qm    = livingSpace,
             rooms = numberOfRooms) %>%
      mutate(pqm = price/qm) %>%
      filter(price >= 150 & 
@@ -141,18 +151,91 @@ Beispieloutput
 ==============
 
 ``` r
-x <- data.frame(qm = c(55.36, 86.34, 96.45), 
-                 rooms = c(2,3,3), 
-                 price = c(423, 1045, 987),
-                 pqm = c(7.640896, 12.10331, 10.23328))
+x <- data.frame(city = c("Berlin", "Berlin", "Berlin"),
+                plz = c("13089", "13158", "13359"),
+                ortsteil = c("Heinersdorf (Weißensee)", "Rosenthal (Pankow)", "Wedding (Wedding)"),
+                lat = c( 52.51721, 52.58644, NA),
+                lon = c(13.4256, 13.3567, NA),
+                qm = c(55.36, 86.34, 96.45), 
+                rooms = c(2,3,3), 
+                balcony = c(TRUE, TRUE, FALSE),
+                garden = c(FALSE, FALSE, TRUE),
+                price = c(423, 1045, 987),
+                pqm = c(7.640896, 12.10331, 10.23328))
 knitr::kable(x, format = "markdown")
 ```
 
-|     qm|  rooms|  price|        pqm|
-|------:|------:|------:|----------:|
-|  55.36|      2|    423|   7.640896|
-|  86.34|      3|   1045|  12.103310|
-|  96.45|      3|    987|  10.233280|
+<table style="width:100%;">
+<colgroup>
+<col width="7%" />
+<col width="6%" />
+<col width="23%" />
+<col width="9%" />
+<col width="8%" />
+<col width="6%" />
+<col width="6%" />
+<col width="8%" />
+<col width="7%" />
+<col width="6%" />
+<col width="10%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">city</th>
+<th align="left">plz</th>
+<th align="left">ortsteil</th>
+<th align="right">lat</th>
+<th align="right">lon</th>
+<th align="right">qm</th>
+<th align="right">rooms</th>
+<th align="left">balcony</th>
+<th align="left">garden</th>
+<th align="right">price</th>
+<th align="right">pqm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Berlin</td>
+<td align="left">13089</td>
+<td align="left">Heinersdorf (Weißensee)</td>
+<td align="right">52.51721</td>
+<td align="right">13.4256</td>
+<td align="right">55.36</td>
+<td align="right">2</td>
+<td align="left">TRUE</td>
+<td align="left">FALSE</td>
+<td align="right">423</td>
+<td align="right">7.640896</td>
+</tr>
+<tr class="even">
+<td align="left">Berlin</td>
+<td align="left">13158</td>
+<td align="left">Rosenthal (Pankow)</td>
+<td align="right">52.58644</td>
+<td align="right">13.3567</td>
+<td align="right">86.34</td>
+<td align="right">3</td>
+<td align="left">TRUE</td>
+<td align="left">FALSE</td>
+<td align="right">1045</td>
+<td align="right">12.103310</td>
+</tr>
+<tr class="odd">
+<td align="left">Berlin</td>
+<td align="left">13359</td>
+<td align="left">Wedding (Wedding)</td>
+<td align="right">NA</td>
+<td align="right">NA</td>
+<td align="right">96.45</td>
+<td align="right">3</td>
+<td align="left">FALSE</td>
+<td align="left">TRUE</td>
+<td align="right">987</td>
+<td align="right">10.233280</td>
+</tr>
+</tbody>
+</table>
 
 Karte der PLZ Gebiete importieren
 =================================

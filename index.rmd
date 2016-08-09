@@ -1,7 +1,7 @@
 ---
 title: "Wohnungsmarktanalysen mit Immoscout24"
 author: "Patrick Hausmann, Arnt von Bodelschwingh"
-date: "08/08/2016"
+date: "09/08/2016"
 output:
  github_document:
     html_preview: yes
@@ -15,6 +15,7 @@ library('jsonlite')
 library('dplyr')
 library('rgdal')
 library('ggplot2')
+library('rlist')
 
 options(httr_oauth_cache = FALSE,
         scipen = 999,
@@ -67,25 +68,20 @@ get_data <- function(geocode) {
 
   for (i in 1:num_pages) {
 
-    r  <- GET(paste0(url = immo24_baseurl(), geocode, "&pagenumber=", i), sig)
+    r <- GET(paste0(url = immo24_baseurl(), geocode, "&pagenumber=", i), sig)
     r <- fromJSON(content(r, "text", encoding="UTF-8"))$resultlist.resultlist$resultlistEntries$resultlistEntry
+    r <- r[[1]]$resultlist.realEstate
 
-    fin <- r[[1]][, 1:6]
-    colnames(fin) <- gsub("@", "", colnames(fin))
-    fin <- data.frame(fin, r[[1]]$resultlist.realEstate)
-    res[[i]] <- fin
+    r$realtorLogo <- NULL
+    r$realtorLogoForResultList <- NULL
+    r$titlePicture <- NULL
+
+    r <- data.frame(rlist::list.flatten(r))
+    res[[i]] <- r
   }
 
-  res_a <- bind_rows(lapply(res, "[", c("title", "privateOffer", 
-                                        "livingSpace", "numberOfRooms", 
-                                        "balcony", "garden")))
-  res_b <- bind_rows(lapply(res, "[[", "price"))
-  
-  res_df <- data.frame(res_a, res_b)
-  
-  out <- list(res_raw = res, res_df = res_df)
-
-  return(out)
+  res <- dplyr::bind_rows(res)
+  return(res)
 
 }
 
@@ -124,10 +120,24 @@ dat <- get_data(geocode = "1276003001")
 
 ```{r}
 
-x <- tbl_df(dat$res_df) %>%
-     dplyr::select(livingSpace, numberOfRooms, value) %>%
-     rename(price = value, 
-            qm = livingSpace,
+x <- tbl_df(dat) %>%
+     dplyr::select(address.city,
+                   address.postcode, 
+                   address.quarter, 
+                   address.wgs84Coordinate.latitude, 
+                   address.wgs84Coordinate.longitude,
+                   livingSpace, 
+                   numberOfRooms, 
+                   balcony,
+                   garden,
+                   price.value) %>%
+     rename(city = address.city,
+            plz  = address.postcode, 
+            ortsteil = address.quarter, 
+            lat  = address.wgs84Coordinate.latitude, 
+            lon  = address.wgs84Coordinate.longitude,
+            price = price.value, 
+            qm    = livingSpace,
             rooms = numberOfRooms) %>%
      mutate(pqm = price/qm) %>%
      filter(price >= 150 & 
@@ -142,10 +152,17 @@ x <- tbl_df(dat$res_df) %>%
 
 ```{r}
 
-x <- data.frame(qm = c(55.36, 86.34, 96.45), 
-                 rooms = c(2,3,3), 
-                 price = c(423, 1045, 987),
-                 pqm = c(7.640896, 12.10331, 10.23328))
+x <- data.frame(city = c("Berlin", "Berlin", "Berlin"),
+                plz = c("13089", "13158", "13359"),
+                ortsteil = c("Heinersdorf (Weißensee)", "Rosenthal (Pankow)", "Wedding (Wedding)"),
+                lat = c( 52.51721, 52.58644, NA),
+                lon = c(13.4256, 13.3567, NA),
+                qm = c(55.36, 86.34, 96.45), 
+                rooms = c(2,3,3), 
+                balcony = c(TRUE, TRUE, FALSE),
+                garden = c(FALSE, FALSE, TRUE),
+                price = c(423, 1045, 987),
+                pqm = c(7.640896, 12.10331, 10.23328))
 knitr::kable(x, format = "markdown")
 
 ```
