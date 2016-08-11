@@ -1,9 +1,9 @@
-Wohnungsmarktanalysen mit Immoscout24
+Wohnungsmarktanalysen mit Daten von 'Immobilienscout24'
 ================
 Patrick Hausmann, Arnt von Bodelschwingh
-09/08/2016
+11/08/2016
 
--   [Funktionen zu Abfrage der API](#funktionen-zu-abfrage-der-api)
+-   [Funktionen zur Abfrage der API](#funktionen-zur-abfrage-der-api)
 -   [Daten für Berlin abfragen](#daten-fur-berlin-abfragen)
 -   [Datensatz bereinigen](#datensatz-bereinigen)
 -   [Beispieloutput](#beispieloutput)
@@ -23,8 +23,8 @@ options(httr_oauth_cache = FALSE,
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Funktionen zu Abfrage der API
-=============================
+Funktionen zur Abfrage der API
+==============================
 
 Für die Nutzung der Rest-API ist eine Anmeldung bei Immobilienscout24 notwendig. Die Authentifizierung erfolgt dann mittels der in der Datei `.Renviron` hinterlegten Keys und Tokens.
 
@@ -112,9 +112,9 @@ sig <- immo24_auth()
 dat <- get_data(geocode = "1276003001")
 ```
 
-    ## Seiten: 217
+    ## Seiten: 216
 
-    ## Wohnungsangebote: 4330
+    ## Wohnungsangebote: 4320
 
 Datensatz bereinigen
 ====================

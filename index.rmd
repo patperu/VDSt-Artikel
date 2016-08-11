@@ -1,7 +1,7 @@
 ---
-title: "Wohnungsmarktanalysen mit Immoscout24"
+title: "Wohnungsmarktanalysen mit Daten von 'Immobilienscout24'"
 author: "Patrick Hausmann, Arnt von Bodelschwingh"
-date: "09/08/2016"
+date: "11/08/2016"
 output:
  github_document:
     html_preview: yes
@@ -24,7 +24,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
-# Funktionen zu Abfrage der API
+# Funktionen zur Abfrage der API
 
 Für die Nutzung der Rest-API ist eine Anmeldung bei Immobilienscout24 notwendig. Die Authentifizierung erfolgt dann mittels der in der Datei `.Renviron`
 hinterlegten Keys und Tokens.
