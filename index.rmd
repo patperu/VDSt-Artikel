@@ -87,7 +87,7 @@ get_data <- function(geocode) {
 
 get_shpfile <- function(url) {
 
-  shp_layer <- strsplit(basename(url), "\\.")[[1]][1]
+  shp_layer <- sub("\\.zip", "", basename(url))
 
   tmp <- tempfile()
   pg <- httr::GET(url, write_disk(tmp))
